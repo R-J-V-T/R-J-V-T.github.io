@@ -31,68 +31,82 @@ html,body {
 <script src="../js/artoolkit.api.js"></script>
 <script async src="js/third_party/three.js/three.min.js"></script>
 <script async src="../js/artoolkit.three.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r152/examples/js/loaders/OBJLoader.js"></script>
+
+
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r152/examples/js/loaders/OBJLoader.js"></script>
 
 <script>
-
 window.ARThreeOnLoad = function() {
 
-	ARController.getUserMediaThreeScene({maxARVideoSize: 320, cameraParam: 'Data/camera_para-iPhone 5 rear 640x480 1.0m.dat',
-	onSuccess: function(arScene, arController, arCamera) {
+	ARController.getUserMediaThreeScene({
+		maxARVideoSize: 320,
+		cameraParam: 'Data/camera_para-iPhone 5 rear 640x480 1.0m.dat',
+		onSuccess: function(arScene, arController, arCamera) {
 
-		document.body.className = arController.orientation;
+			document.body.className = arController.orientation;
 
-		arController.setPatternDetectionMode(artoolkit.AR_MATRIX_CODE_DETECTION);
+			arController.setPatternDetectionMode(artoolkit.AR_MATRIX_CODE_DETECTION);
 
-		var renderer = new THREE.WebGLRenderer({antialias: true});
-		if (arController.orientation === 'portrait') {
-			var w = (window.innerWidth / arController.videoHeight) * arController.videoWidth;
-			var h = window.innerWidth;
-			renderer.setSize(w, h);
-			renderer.domElement.style.paddingBottom = (w-h) + 'px';
-		} else {
-			if (/Android|mobile|iPad|iPhone/i.test(navigator.userAgent)) {
-				renderer.setSize(window.innerWidth, (window.innerWidth / arController.videoWidth) * arController.videoHeight);
+			var renderer = new THREE.WebGLRenderer({antialias: true});
+			if (arController.orientation === 'portrait') {
+				var w = (window.innerWidth / arController.videoHeight) * arController.videoWidth;
+				var h = window.innerWidth;
+				renderer.setSize(w, h);
+				renderer.domElement.style.paddingBottom = (w-h) + 'px';
 			} else {
-				renderer.setSize(arController.videoWidth, arController.videoHeight);
-				document.body.className += ' desktop';
+				if (/Android|mobile|iPad|iPhone/i.test(navigator.userAgent)) {
+					renderer.setSize(window.innerWidth, (window.innerWidth / arController.videoWidth) * arController.videoHeight);
+				} else {
+					renderer.setSize(arController.videoWidth, arController.videoHeight);
+					document.body.className += ' desktop';
+				}
 			}
+
+			document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+			// See /doc/patterns/Matrix code 3x3 (72dpi)/20.png
+			var markerRoot = arController.createThreeBarcodeMarker(20);
+
+			// **Carga del Modelo 3D**
+			var objLoader = new THREE.OBJLoader();
+			objLoader.load('./Data/House01/House 01.obj', function (object) {
+				// Ajustar posición y escala si es necesario
+				object.scale.set(0.01, 0.01, 0.01); // Ajustar la escala a tu modelo
+				object.position.set(0, 0, 0.5); // Ajustar posición inicial
+				markerRoot.add(object);
+			}, 
+			function (xhr) {
+				console.log((xhr.loaded / xhr.total * 100) + '% cargado'); // Progreso de carga
+			}, 
+			function (error) {
+				console.error('Error al cargar el modelo:', error);
+			});
+
+			arScene.scene.add(markerRoot);
+
+			// Animación si es necesaria
+			var rotationV = 0;
+			var rotationTarget = 0;
+
+			renderer.domElement.addEventListener('click', function(ev) {
+				ev.preventDefault();
+				rotationTarget += 1;
+			}, false);
+
+			var tick = function() {
+				arScene.process();
+				arScene.renderOn(renderer);
+				rotationV += (rotationTarget - rotationV) * 0.05;
+				rotationV *= 0.8;
+
+				requestAnimationFrame(tick);
+			};
+
+			tick();
+
 		}
-
-		document.body.insertBefore(renderer.domElement, document.body.firstChild);
-
-		// See /doc/patterns/Matrix code 3x3 (72dpi)/20.png
-		var markerRoot = arController.createThreeBarcodeMarker(20);
-
-		var sphere = new THREE.Mesh(
-			new THREE.SphereGeometry(0.5, 8, 8),
-			new THREE.MeshNormalMaterial()
-		);
-		sphere.material.flatShading;
-		sphere.position.z = 0.5;
-		markerRoot.add(sphere);
-		arScene.scene.add(markerRoot);
-
-		var rotationV = 0;
-		var rotationTarget = 0;
-
-		renderer.domElement.addEventListener('click', function(ev) {
-			ev.preventDefault();
-			rotationTarget += 1;
-		}, false);
-
-		var tick = function() {
-			arScene.process();
-			arScene.renderOn(renderer);
-			rotationV += (rotationTarget - sphere.rotation.z) * 0.05;
-			sphere.rotation.z += rotationV;
-			rotationV *= 0.8;
-
-			requestAnimationFrame(tick);
-		};
-
-		tick();
-
-	}});
+	});
 
 	delete window.ARThreeOnLoad;
 
@@ -101,7 +115,6 @@ window.ARThreeOnLoad = function() {
 if (window.ARController && ARController.getUserMediaThreeScene) {
 	ARThreeOnLoad();
 }
-
 </script>
 
 </body>
